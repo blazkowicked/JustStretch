@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DangerButton, InputError, InputLabel, PrimaryButton, SecondaryButton, TextInput } from '../components/forms.jsx'
 import Icon from '../components/Icon.jsx'
+import PasswordChecklist from '../components/PasswordChecklist.jsx'
 import Modal from '../components/Modal.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import AppLayout from '../layouts/AppLayout.jsx'
@@ -347,7 +348,7 @@ function UpdatePassword() {
   return (
     <section id="password" className={`${card} scroll-mt-8 overflow-hidden p-5 sm:p-6`}>
       <SectionHeader title="Password">
-        Use a long password you don&apos;t use anywhere else. At least 8 characters. Changing it signs out your other sessions.
+        Use a password you don&apos;t use anywhere else. Changing it signs out your other sessions.
       </SectionHeader>
 
       <form onSubmit={submit} className="max-w-xl space-y-5">
@@ -366,7 +367,14 @@ function UpdatePassword() {
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
             <InputLabel htmlFor="update_password_password" value="New password" />
-            <TextInput id="update_password_password" type="password" className="mt-1.5" autoComplete="new-password" {...form.bind('password')} />
+            <TextInput
+              id="update_password_password"
+              type="password"
+              className="mt-1.5"
+              autoComplete="new-password"
+              aria-describedby="update_password_rules"
+              {...form.bind('password')}
+            />
             <InputError messages={form.errors.password} className="mt-2" />
           </div>
 
@@ -382,6 +390,8 @@ function UpdatePassword() {
             <InputError messages={form.errors.passwordConfirmation} className="mt-2" />
           </div>
         </div>
+
+        <PasswordChecklist id="update_password_rules" value={form.values.password} />
 
         <InputError messages={form.errors._form} />
 

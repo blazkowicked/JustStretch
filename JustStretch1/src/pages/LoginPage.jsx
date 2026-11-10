@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Flash from '../components/Flash.jsx'
 import Icon from '../components/Icon.jsx'
+import PasswordChecklist from '../components/PasswordChecklist.jsx'
 import { Wordmark } from '../components/Mark.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useForm, usePageTitle } from '../lib/hooks.js'
@@ -92,7 +93,7 @@ function RegisterForm({ active, onToggle }) {
             id="register_password"
             labelText="Password"
             autoComplete="new-password"
-            hint="At least 8 characters"
+            aria-describedby="register_password_rules"
             required
             {...form.bind('password')}
             error={form.errors.password}
@@ -107,6 +108,7 @@ function RegisterForm({ active, onToggle }) {
             error={form.errors.passwordConfirmation}
           />
         </div>
+        <PasswordChecklist id="register_password_rules" value={form.values.password} />
         <FieldError messages={form.errors._form} />
         <button type="submit" disabled={form.processing} className={`${btn.primary} ${btn.lg} w-full`}>
           Create account
@@ -362,7 +364,7 @@ const LoginPage = ({ initialView = 'login' }) => {
       <div className="w-full max-w-[880px] empty:hidden">
         <Flash />
       </div>
-      <div className="relative w-full max-w-[880px] overflow-hidden rounded-lg border border-line bg-surface sm:h-[620px]">
+      <div className="relative w-full max-w-[880px] overflow-hidden rounded-lg border border-line bg-surface sm:h-[700px]">
         <BrandPanel view={activeView} onToggle={toggleView} />
         <RegisterForm active={activeView === 'register'} onToggle={toggleView} />
         <LoginForm active={activeView === 'login'} onToggle={toggleView} />

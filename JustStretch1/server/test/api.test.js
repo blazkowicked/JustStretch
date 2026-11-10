@@ -35,7 +35,7 @@ async function register(name, email) {
   const agent = request.agent(app)
   const res = await agent
     .post('/api/auth/register')
-    .send({ name, email, password: 'password', passwordConfirmation: 'password' })
+    .send({ name, email, password: 'Passw0rd!', passwordConfirmation: 'Passw0rd!' })
   assert.equal(res.status, 201)
   return { agent, res }
 }
@@ -96,7 +96,7 @@ describe('auth', () => {
     assert.equal(bad.status, 422)
     assert.deepEqual(bad.body.errors.email, ['These credentials do not match our records.'])
 
-    const ok = await agent.post('/api/auth/login').send({ email: 'ada@example.com', password: 'password' })
+    const ok = await agent.post('/api/auth/login').send({ email: 'ada@example.com', password: 'Passw0rd!' })
     assert.equal(ok.status, 200)
     assert.equal(ok.body.user.email, 'ada@example.com')
   })
@@ -113,7 +113,7 @@ describe('auth', () => {
 
     const dup = await request(app)
       .post('/api/auth/register')
-      .send({ name: 'Dup', email: 'taken@example.com', password: 'password', passwordConfirmation: 'password' })
+      .send({ name: 'Dup', email: 'taken@example.com', password: 'Passw0rd!', passwordConfirmation: 'Passw0rd!' })
     assert.deepEqual(dup.body.errors.email, ['The email has already been taken.'])
   })
 
@@ -175,7 +175,7 @@ describe('profile', () => {
     assert.equal(saved.body.user.password, undefined)
 
     // The email still works for logging in, and the old password still does.
-    const login = await request(app).post('/api/auth/login').send({ email: 'locked@example.com', password: 'password' })
+    const login = await request(app).post('/api/auth/login').send({ email: 'locked@example.com', password: 'Passw0rd!' })
     assert.equal(login.status, 200)
   })
 

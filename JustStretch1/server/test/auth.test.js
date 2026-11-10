@@ -33,7 +33,7 @@ async function register(name, email) {
   const agent = request.agent(app)
   const res = await agent
     .post('/api/auth/register')
-    .send({ name, email, password: 'password', passwordConfirmation: 'password' })
+    .send({ name, email, password: 'Passw0rd!', passwordConfirmation: 'Passw0rd!' })
   assert.equal(res.status, 201)
   return { agent, res }
 }
@@ -52,7 +52,7 @@ async function signUp(name, email) {
   return agent
 }
 
-const passwordBody = (password = 'password') => ({
+const passwordBody = (password = 'Passw0rd!') => ({
   password,
   passwordConfirmation: password,
 })
@@ -63,7 +63,7 @@ describe('email verification', () => {
     await register('Pending', email)
 
     const agent = request.agent(app)
-    const login = await agent.post('/api/auth/login').send({ email, password: 'password' })
+    const login = await agent.post('/api/auth/login').send({ email, password: 'Passw0rd!' })
     assert.equal(login.status, 200)
     assert.equal(login.body.verificationRequired, true)
     assert.equal(login.body.source, 'login')
@@ -113,6 +113,22 @@ describe('email verification', () => {
     assert.equal(res.status, 422)
     assert.ok(res.body.errors.password.some((message) => message.includes('72 bytes')))
   })
+
+  test('rejects new passwords that miss a character rule, one rule at a time', async () => {
+    const cases = [
+      ['alllowercase1!', 'must contain an uppercase letter'],
+      ['ALLUPPERCASE1!', 'must contain a lowercase letter'],
+      ['NoNumbersHere!', 'must contain a number'],
+      ['NoSymbols123', 'must contain a symbol'],
+    ]
+    for (const [password, expected] of cases) {
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({ name: 'Weak', email: 'weak@example.com', ...passwordBody(password) })
+      assert.equal(res.status, 422)
+      assert.deepEqual(res.body.errors.password, [`The password field ${expected}.`])
+    }
+  })
 })
 
 describe('password reset', () => {
@@ -128,12 +144,12 @@ describe('password reset', () => {
 
     const resetUrl = mailer.lastResetUrl(email)
     const token = new URL(resetUrl).searchParams.get('token')
-    const reset = await resetter.post('/api/auth/reset-password').send({ token, ...passwordBody('newpassword') })
+    const reset = await resetter.post('/api/auth/reset-password').send({ token, ...passwordBody('NewPassw0rd!') })
     assert.equal(reset.status, 200)
 
     assert.equal((await agent.get('/api/profile')).status, 401)
-    assert.equal((await request(app).post('/api/auth/login').send({ email, password: 'password' })).status, 422)
-    assert.equal((await request(app).post('/api/auth/login').send({ email, password: 'newpassword' })).status, 200)
+    assert.equal((await request(app).post('/api/auth/login').send({ email, password: 'Passw0rd!' })).status, 422)
+    assert.equal((await request(app).post('/api/auth/login').send({ email, password: 'NewPassw0rd!' })).status, 200)
 
     const user = await User.findOne({ email })
     assert.ok(user.emailVerifiedAt)
@@ -161,14 +177,14 @@ describe('account lifecycle', () => {
     const wrong = await agent.put('/api/profile/email').send({ email: nextEmail, currentPassword: 'wrong-password' })
     assert.equal(wrong.status, 422)
 
-    const changed = await agent.put('/api/profile/email').send({ email: nextEmail, currentPassword: 'password' })
+    const changed = await agent.put('/api/profile/email').send({ email: nextEmail, currentPassword: 'Passw0rd!' })
     assert.equal(changed.status, 200)
     assert.equal(changed.body.loggedOut, true)
     assert.equal((await agent.get('/api/profile')).status, 401)
 
-    assert.equal((await request(app).post('/api/auth/login').send({ email, password: 'password' })).status, 422)
+    assert.equal((await request(app).post('/api/auth/login').send({ email, password: 'Passw0rd!' })).status, 422)
 
-    const login = await agent.post('/api/auth/login').send({ email: nextEmail, password: 'password' })
+    const login = await agent.post('/api/auth/login').send({ email: nextEmail, password: 'Passw0rd!' })
     assert.equal(login.status, 200)
     assert.equal(login.body.verificationRequired, true)
 
@@ -180,27 +196,27 @@ describe('account lifecycle', () => {
     const email = 'password-change@example.com'
     const first = await signUp('Password change', email)
     const second = request.agent(app)
-    assert.equal((await second.post('/api/auth/login').send({ email, password: 'password' })).status, 200)
+    assert.equal((await second.post('/api/auth/login').send({ email, password: 'Passw0rd!' })).status, 200)
     assert.equal((await second.get('/api/profile')).status, 200)
 
     const changed = await first
       .put('/api/profile/password')
-      .send({ currentPassword: 'password', ...passwordBody('changedpass') })
+      .send({ currentPassword: 'Passw0rd!', ...passwordBody('Changed-Pass1') })
     assert.equal(changed.status, 200)
 
     assert.equal((await first.get('/api/profile')).status, 200)
     assert.equal((await second.get('/api/profile')).status, 401)
-    assert.equal((await request(app).post('/api/auth/login').send({ email, password: 'password' })).status, 422)
-    assert.equal((await request(app).post('/api/auth/login').send({ email, password: 'changedpass' })).status, 200)
+    assert.equal((await request(app).post('/api/auth/login').send({ email, password: 'Passw0rd!' })).status, 422)
+    assert.equal((await request(app).post('/api/auth/login').send({ email, password: 'Changed-Pass1' })).status, 200)
   })
 
   test('lists, revokes, and logs out sessions', async () => {
     const email = 'sessions@example.com'
     const first = await signUp('Sessions', email)
     const second = request.agent(app)
-    await second.post('/api/auth/login').send({ email, password: 'password' })
+    await second.post('/api/auth/login').send({ email, password: 'Passw0rd!' })
     const third = request.agent(app)
-    await third.post('/api/auth/login').send({ email, password: 'password' })
+    await third.post('/api/auth/login').send({ email, password: 'Passw0rd!' })
 
     const sessions = await first.get('/api/auth/sessions')
     assert.equal(sessions.status, 200)
@@ -226,7 +242,7 @@ describe('account lifecycle', () => {
     const user = await User.findOne({ email })
 
     assert.equal((await agent.delete('/api/profile').send({ password: 'wrong-password' })).status, 422)
-    assert.equal((await agent.delete('/api/profile').send({ password: 'password' })).status, 200)
+    assert.equal((await agent.delete('/api/profile').send({ password: 'Passw0rd!' })).status, 200)
     assert.equal(await User.countDocuments({ _id: user._id }), 0)
     assert.equal(await UserSession.countDocuments({ user: user._id }), 0)
     assert.equal(await EmailVerificationChallenge.countDocuments({ user: user._id }), 0)

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { InputError, InputLabel, PrimaryButton, TextInput } from '../components/forms.jsx'
 import Icon from '../components/Icon.jsx'
+import PasswordChecklist from '../components/PasswordChecklist.jsx'
 import { Wordmark } from '../components/Mark.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { api } from '../lib/api.js'
@@ -70,7 +71,7 @@ export default function ResetPassword() {
             </span>
             <h1 className="mt-5 text-[28px] font-semibold tracking-[-0.02em]">Choose a new password</h1>
             <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
-              Use at least 8 characters. Resetting your password also confirms your email address.
+              Pick a password that meets the requirements below. Resetting your password also confirms your email address.
             </p>
 
             <form onSubmit={submit} noValidate className="mt-6 space-y-5">
@@ -81,11 +82,13 @@ export default function ResetPassword() {
                   type="password"
                   className="mt-1.5"
                   autoComplete="new-password"
+                  aria-describedby="reset_password_rules"
                   required
                   autoFocus
                   {...form.bind('password')}
                 />
                 <InputError messages={form.errors.password} className="mt-2" />
+                <PasswordChecklist id="reset_password_rules" value={form.values.password} className="mt-3" />
               </div>
 
               <div>

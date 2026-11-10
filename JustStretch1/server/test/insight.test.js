@@ -50,7 +50,7 @@ beforeEach(() => {
 
 async function signUp(name, email) {
   const agent = request.agent(app)
-  const res = await agent.post('/api/auth/register').send({ name, email, password: 'password', passwordConfirmation: 'password' })
+  const res = await agent.post('/api/auth/register').send({ name, email, password: 'Passw0rd!', passwordConfirmation: 'Passw0rd!' })
   assert.equal(res.status, 201)
   const verified = await agent.post('/api/auth/verify-email').send({ code: mailer.lastCode(email) })
   assert.equal(verified.status, 200)
@@ -184,7 +184,7 @@ describe('dashboard insight', () => {
     const me = (await user.get('/api/auth/me')).body.user
     assert.equal(await Insight.countDocuments({ user: me.id }), 1)
 
-    const res = await user.delete('/api/profile').send({ password: 'password' })
+    const res = await user.delete('/api/profile').send({ password: 'Passw0rd!' })
     assert.equal(res.status, 200)
     assert.equal(await Insight.countDocuments({ user: me.id }), 0)
   })

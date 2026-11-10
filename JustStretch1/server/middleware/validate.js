@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PASSWORD_MAX_BYTES, firstFailedPasswordRule, passwordByteLength } from '../shared/passwordRules.js'
 
 // Laravel's TrimStrings + ConvertEmptyStringsToNull middleware, applied to JSON bodies.
 const UNTOUCHED = new Set(['password', 'passwordConfirmation', 'currentPassword'])
@@ -101,9 +102,13 @@ export function emailField(label = 'email') {
 export function newPasswordField(label = 'password') {
   return z
     .string({ error: (iss) => (missing(iss.input) ? required(label) : `The ${label} field must be a string.`) })
-    .min(8, { error: `The ${label} field must be at least 8 characters.` })
-    .refine((value) => Buffer.byteLength(value, 'utf8') <= 72, {
-      error: `The ${label} field must not be greater than 72 bytes.`,
+    .superRefine((value, ctx) => {
+      // Report only the first broken rule; the form's checklist shows the rest.
+      const failed = firstFailedPasswordRule(value)
+      if (failed) ctx.addIssue({ code: 'custom', message: `The ${label} field ${failed.message}.` })
+    })
+    .refine((value) => passwordByteLength(value) <= PASSWORD_MAX_BYTES, {
+      error: `The ${label} field must not be greater than ${PASSWORD_MAX_BYTES} bytes.`,
     })
 }
 
