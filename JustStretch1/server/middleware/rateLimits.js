@@ -40,6 +40,7 @@ export function createRateLimiters({ enabled = true } = {}) {
       verifyEmail: noLimit,
       resendVerification: noLimit,
       sensitive: noLimit,
+      sessionNote: noLimit,
     }
   }
 
@@ -51,5 +52,7 @@ export function createRateLimiters({ enabled = true } = {}) {
     verifyEmail: limiter(10, FIFTEEN_MINUTES),
     resendVerification: limiter(3, FIFTEEN_MINUTES),
     sensitive: limiter(5, FIFTEEN_MINUTES, userKey),
+    // Each note draft is one Groq call.
+    sessionNote: limiter(20, FIFTEEN_MINUTES, userKey),
   }
 }

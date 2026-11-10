@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import DifficultyBadge from '../components/DifficultyBadge.jsx'
 import { InputError, InputLabel, PrimaryButton } from '../components/forms.jsx'
@@ -16,6 +16,30 @@ import { FATIGUE_LABELS, toPerfPayload, toSessionMetrics } from '../lib/sessionM
 import { card, container, label as labelClass, sectionTitle, statLabel, textarea } from '../lib/ui.js'
 import PoseStage from '../pose/PoseStage.jsx'
 import NotFound from './NotFound.jsx'
+
+// Status line beside the Notes label while the API drafts them from the session results.
+function NoteDraftStatus({ status, onRedo }) {
+  const redo = (text) => (
+    <button type="button" onClick={onRedo} className="font-medium text-accent hover:text-accent-dark">
+      {text}
+    </button>
+  )
+  return (
+    <p id="notes_draft_status" className="text-[13px] text-muted" role="status">
+      {status === 'drafting' && 'Writing notes from your results…'}
+      {status === 'ready' && (
+        <>
+          Drafted from your results. Edit freely. {redo('Write again')}
+        </>
+      )}
+      {status === 'failed' && (
+        <>
+          Couldn&apos;t draft notes. {redo('Try again')}
+        </>
+      )}
+    </p>
+  )
+}
 
 // Score form. Hidden until the pose tracker emits `session-ended` on the event bus.
 // A suggested score from the camera tracking pre-fills the slider and is marked as
@@ -36,12 +60,47 @@ function ScoreForm({ exercise }) {
   // save's response time can go into the downloaded log).
   const [perfLog, setPerfLog] = useState(null)
   const [saved, setSaved] = useState(null)
+  // Notes drafted from the camera results ('drafting' | 'ready' | 'failed' | null).
+  const [noteStatus, setNoteStatus] = useState(null)
+  const notesTouched = useRef(false)
+  const noteToken = useRef(0)
+  const { setField } = form
   const section = useRef(null)
   // One guard per workout: remember the clientId we tried to save, and ignore
   // a late response once the user has started a newer session.
   const savedKeys = useRef(new Set())
   const lastKey = useRef(null)
   const autoSaveToken = useRef(0)
+
+  // Asks the API to write the Notes box from what did not stretch properly. Only fills
+  // the box while the member has not typed in it; "Write again" overwrites on purpose.
+  // Not saved until they press Save / Update session.
+  const draftNote = useCallback(
+    (sessionSummary, { overwrite = false, fatigue: fatigueRating = null } = {}) => {
+      const metrics = { ...toSessionMetrics(sessionSummary), ...(fatigueRating == null ? {} : { fatigue: fatigueRating }) }
+      const judgedEnough =
+        sessionSummary?.hasReference && sessionSummary.judgedFrames >= sessionSummary.minJudgedFrames && metrics.jointResults?.length
+      if (!judgedEnough) {
+        setNoteStatus(null)
+        return
+      }
+      if (overwrite) notesTouched.current = false
+      const token = ++noteToken.current
+      setNoteStatus('drafting')
+      api
+        .post(`/exercises/${exercise.id}/session-note`, metrics)
+        .then(({ note }) => {
+          if (noteToken.current !== token) return
+          if (!note) return setNoteStatus(null)
+          if (!notesTouched.current) setField('notes', note)
+          setNoteStatus('ready')
+        })
+        .catch(() => {
+          if (noteToken.current === token) setNoteStatus('failed')
+        })
+    },
+    [exercise.id, setField],
+  )
 
   useEffect(() => {
     return on('session-ended', (detail) => {
@@ -59,6 +118,9 @@ function ScoreForm({ exercise }) {
       setScore(detail.score ?? null)
       setFatigue(null)
       setOpen(true)
+      notesTouched.current = false
+      setField('notes', '')
+      draftNote(detail.summary)
 
       // Only the automatic end condition saves by itself, and only when the
       // camera produced a score (the API requires one). Manual ends keep the
@@ -90,7 +152,7 @@ function ScoreForm({ exercise }) {
           if (autoSaveToken.current === token) setAutoSaving(false)
         })
     })
-  }, [exercise.id])
+  }, [exercise.id, draftNote, setField])
 
   useEffect(() => {
     if (open) section.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -314,15 +376,23 @@ function ScoreForm({ exercise }) {
             </div>
 
             <div>
-              <InputLabel htmlFor="notes" value="Notes (optional)" />
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <InputLabel htmlFor="notes" value="Notes (optional)" />
+                <NoteDraftStatus status={noteStatus} onRedo={() => draftNote(summary, { overwrite: true, fatigue })} />
+              </div>
               <textarea
                 id="notes"
                 name="notes"
                 rows={3}
                 maxLength={500}
                 className={`mt-1.5 ${textarea}`}
-                placeholder="e.g. Left side felt tighter than the right."
+                placeholder={noteStatus === 'drafting' ? 'Writing notes from your results…' : 'e.g. Left side felt tighter than the right.'}
+                aria-describedby="notes_draft_status"
                 {...form.bind('notes')}
+                onChange={(event) => {
+                  notesTouched.current = true
+                  form.setField('notes', event.target.value)
+                }}
               />
               <InputError messages={form.errors.notes} className="mt-2" />
             </div>

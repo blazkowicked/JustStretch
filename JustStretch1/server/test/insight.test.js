@@ -23,6 +23,10 @@ const fakeWriter = {
     this.calls.push(facts)
     return this.reply
   },
+  async writeNote(facts) {
+    this.calls.push(facts)
+    return this.reply
+  },
 }
 
 before(async () => {
@@ -233,5 +237,70 @@ describe('insight writer', () => {
     assert.equal(cleanNarrative('  **Bold** _text_  '), 'Bold text')
     assert.equal(cleanNarrative(''), null)
     assert.ok(cleanNarrative('a'.repeat(1000)).length <= 400)
+  })
+})
+
+// Camera results for one session: the left shoulder struggled, the rest held.
+const noteMetrics = {
+  trackingScore: 64,
+  jointResults: [
+    { joint: 'left_shoulder', avgError: 21.4, timeInRangePct: 38 },
+    { joint: 'right_shoulder', avgError: 6.2, timeInRangePct: 91 },
+    { joint: 'neck_tilt', avgError: 9.8, timeInRangePct: 72 },
+  ],
+  limbResults: [
+    { limb: 'leftArm', score: 40, judgedFrames: 300, goodFrames: 120 },
+    { limb: 'rightArm', score: 88, judgedFrames: 300, goodFrames: 264 },
+    { limb: 'neck', score: 72, judgedFrames: 300, goodFrames: 216 },
+  ],
+}
+
+describe('session note draft', () => {
+  test('writes a template note about what did not stretch properly when Groq is off', async () => {
+    fakeWriter.enabled = false
+    const user = await signUp('Note Template', 'note-template@example.com')
+    const exercise = await addExercise(user, 'Cross-Body Shoulder Stretch', 'shoulders')
+
+    const res = await user.post(`/api/exercises/${exercise.id}/session-note`).send(noteMetrics)
+    assert.equal(res.status, 200)
+    assert.equal(res.body.source, 'template')
+    assert.match(res.body.note, /left shoulder \(in range 38% of the time\)/)
+    assert.match(res.body.note, /neck tilt \(in range 72% of the time\)/)
+    assert.doesNotMatch(res.body.note, /right shoulder/)
+    assert.match(res.body.note, /left arm lagged behind my right \(40 vs 88\)/)
+  })
+
+  test('uses Groq with facts only, and saves nothing', async () => {
+    fakeWriter.reply = 'My **left shoulder** only stayed in range 38% of the time.'
+    const user = await signUp('Note Groq', 'note-groq@example.com')
+    const exercise = await addExercise(user, 'Overhead Side Bend', 'shoulders')
+
+    const res = await user.post(`/api/exercises/${exercise.id}/session-note`).send(noteMetrics)
+    assert.equal(res.status, 200)
+    assert.equal(res.body.source, 'groq')
+    assert.equal(res.body.note, 'My left shoulder only stayed in range 38% of the time.')
+
+    const facts = fakeWriter.calls.at(-1)
+    assert.equal(facts.exercise, 'Overhead Side Bend')
+    assert.deepEqual(facts.needsWork.map((j) => j.joint), ['left shoulder', 'neck tilt'])
+    assert.deepEqual(facts.sideGap, { part: 'arm', weakerSide: 'left', weakerScore: 40, strongerScore: 88 })
+    assert.doesNotMatch(JSON.stringify(facts), /note-groq@example\.com|Note Groq/)
+    assert.equal((await user.get('/api/sessions')).body.meta.total, 0)
+  })
+
+  test('returns no note for a session without camera results', async () => {
+    const user = await signUp('Note Manual', 'note-manual@example.com')
+    const exercise = await addExercise(user, 'Shoulder Rolls', 'shoulders')
+    const res = await user.post(`/api/exercises/${exercise.id}/session-note`).send({})
+    assert.equal(res.status, 200)
+    assert.deepEqual(res.body, { note: null, source: null })
+    assert.equal(fakeWriter.calls.length, 0)
+  })
+
+  test('requires a login', async () => {
+    const owner = await signUp('Note Owner', 'note-owner@example.com')
+    const exercise = await addExercise(owner, 'Neck Side Tilt', 'neck')
+    const res = await request(app).post(`/api/exercises/${exercise.id}/session-note`).send(noteMetrics)
+    assert.equal(res.status, 401)
   })
 })

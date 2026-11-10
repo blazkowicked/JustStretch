@@ -103,6 +103,21 @@ const perfSchema = z.object({
   outOfOrderFrames: intField('out of order frames', { min: 0, max: 1000000, optional: true }),
 })
 
+// Camera results the "Notes" draft is written from (POST /exercises/:id/session-note).
+// The same fields the session is saved with; anything else in the body is ignored.
+export const sessionNoteSchema = z.object({
+  jointResults: z
+    .array(jointResultSchema, { error: 'The joint results field must be an array.' })
+    .max(24, { error: 'The joint results field must not have more than 24 items.' })
+    .optional(),
+  limbResults: z
+    .array(limbResultSchema, { error: 'The limb results field must be an array.' })
+    .max(LIMB_IDS.length, { error: `The limb results field must not have more than ${LIMB_IDS.length} items.` })
+    .optional(),
+  trackingScore: intField('tracking score', { min: 0, max: 100, optional: true }),
+  fatigue: intField('fatigue', { min: 1, max: 5, optional: true }),
+})
+
 export const sessionSchema = z
   .object({
     score: intField('score', { min: 0, max: 100 }),

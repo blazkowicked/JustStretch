@@ -4,9 +4,11 @@ import { Exercise } from '../models/Exercise.js'
 import { StretchSession } from '../models/StretchSession.js'
 import { forbidden, isValidId, notFound } from '../middleware/errors.js'
 import { requireAuth } from '../middleware/requireAuth.js'
-import { exerciseSchema, sessionSchema } from '../middleware/schemas.js'
+import { exerciseSchema, sessionNoteSchema, sessionSchema } from '../middleware/schemas.js'
 import { validate } from '../middleware/validate.js'
+import { cleanNarrative } from '../services/insightWriter.js'
 import { evaluateReferral } from '../services/referral.js'
+import { sessionNoteFacts, templateSessionNote } from '../services/sessionNote.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -101,6 +103,18 @@ router.put('/:id', loadExercise, authorOnly, validate(exerciseSchema), async (re
 router.delete('/:id', loadExercise, authorOnly, async (req, res) => {
   await deleteExercise(req.exercise._id)
   res.json({ ok: true, title: req.exercise.title })
+})
+
+// Drafts the Notes box from the camera results of the session just finished. Nothing is
+// saved here; the member edits the draft and it is stored with the session as usual.
+const sessionNoteLimit = (req, res, next) => req.app.locals.rateLimits.sessionNote(req, res, next)
+
+router.post('/:id/session-note', sessionNoteLimit, loadExercise, validate(sessionNoteSchema), async (req, res) => {
+  const facts = sessionNoteFacts(req.exercise, req.body)
+  if (!facts) return res.json({ note: null, source: null })
+
+  const written = cleanNarrative(await req.app.locals.insightWriter?.writeNote?.(facts))
+  res.json(written ? { note: written, source: 'groq' } : { note: templateSessionNote(facts), source: 'template' })
 })
 
 router.post('/:id/sessions', loadExercise, validate(sessionSchema), async (req, res) => {
