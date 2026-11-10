@@ -14,10 +14,9 @@ const lead = 'text-[18px] leading-relaxed text-ink-2 sm:text-[21px]'
 
 // Library stand-in for the hero. Swap the src for a photo of your own (someone stretching at home).
 const HERO_PHOTO = {
-  src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Naam_Yoga_LA_Class.jpg/1920px-Naam_Yoga_LA_Class.jpg',
-  srcSet: [960, 1280, 1920]
-    .map((w) => `https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Naam_Yoga_LA_Class.jpg/${w}px-Naam_Yoga_LA_Class.jpg ${w}w`)
-    .join(', '),
+  // Served from public/ so the page works offline; resized copies of public/hero.jpg.
+  src: '/hero-1920.jpg',
+  srcSet: '/hero-960.jpg 960w, /hero-1920.jpg 1920w',
   alt: 'A group stretching their arms overhead in a bright studio',
 }
 
