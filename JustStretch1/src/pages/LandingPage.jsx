@@ -27,22 +27,7 @@ const AD = {
 const heroHead = 'min-w-0 text-balance text-[32px] font-semibold leading-[1.08] tracking-[-0.03em] [overflow-wrap:break-word] sm:text-[42px] lg:text-[48px]'
 
 function HeroAd() {
-  const area = useRef(null)
   const video = useRef(null)
-  // The largest 16:9 frame that fits the space left above the headline, so the
-  // controls sit on the video's own corner instead of the screen's.
-  const [frame, setFrame] = useState(null)
-  useEffect(() => {
-    const el = area.current
-    if (!el || typeof ResizeObserver === 'undefined') return undefined
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect
-      const w = Math.min(width, (height * 16) / 9)
-      setFrame({ width: Math.floor(w), height: Math.floor((w * 9) / 16) })
-    })
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(true)
   // Reduced-motion visitors get the poster and press play themselves.
@@ -67,8 +52,9 @@ function HeroAd() {
     'flex h-8 w-8 items-center justify-center rounded-full sm:h-10 sm:w-10 bg-ink/75 text-white backdrop-blur-sm transition-colors hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
 
   return (
-    <div ref={area} className="relative aspect-video w-full sm:aspect-auto sm:min-h-[14rem] sm:flex-1">
-      <div className="absolute inset-0 m-auto aspect-video max-h-full max-w-full" style={frame ?? { width: '100%' }}>
+    // Full screen width at 16:9; the headline follows underneath.
+    <div className="relative aspect-video w-full">
+      <div className="absolute inset-0">
         <video
           ref={video}
           className="h-full w-full"
@@ -257,9 +243,8 @@ export default function LandingPage() {
 
   return (
     <PublicLayout contactBar>
-      {/* Hero: the ad fills the screen, with the headline and buttons centred underneath.
-          On phones the 16:9 ad cannot fill a tall screen, so the hero is only as tall as its content. */}
-      <section id="hero" className="flex flex-col bg-[#f8fafa] sm:min-h-[calc(100dvh-6.25rem)]">
+      {/* Hero: the ad spans the full width of the screen, with the headline and buttons centred underneath. */}
+      <section id="hero" className="flex flex-col bg-[#f8fafa]">
         <HeroAd />
         <div className={`${container} pb-10 pt-5 text-center sm:pb-12 sm:pt-6`}>
           <h1 className={`mx-auto max-w-[62rem] ${heroHead}`}>Stretch at home, with measured feedback.</h1>
