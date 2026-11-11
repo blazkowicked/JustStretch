@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import Contact from '../components/Contact.jsx'
 import Icon from '../components/Icon.jsx'
@@ -7,28 +7,98 @@ import PublicLayout from '../layouts/PublicLayout.jsx'
 import { btn, card, container, statLabel } from '../lib/ui.js'
 
 // Type sizes for this page only, so the app pages keep their own scale.
-const display = 'min-w-0 text-balance text-[42px] font-semibold leading-[1.04] tracking-[-0.03em] [overflow-wrap:break-word] sm:text-[60px] lg:text-[76px]'
 const sectionHead = 'min-w-0 text-balance text-[32px] font-semibold leading-[1.08] tracking-[-0.02em] [overflow-wrap:break-word] sm:text-[44px] lg:text-[52px]'
 const itemHead = 'text-[22px] font-semibold leading-tight tracking-[-0.01em] sm:text-[25px]'
 const lead = 'text-[18px] leading-relaxed text-ink-2 sm:text-[21px]'
 
-// Library stand-in for the hero. Swap the src for a photo of your own (someone stretching at home).
-const HERO_PHOTO = {
-  // Served from public/ so the page works offline; resized copies of public/hero.jpg.
-  src: '/hero-1920.jpg',
-  srcSet: '/hero-960.jpg 960w, /hero-1920.jpg 1920w',
-  alt: 'A group stretching their arms overhead in a bright studio',
+// The hero is the Just Stretch ad (public/ad/). It starts muted because browsers only
+// autoplay silent video; the buttons in its corner pause it and turn the sound on.
+// Its background is #f8fafa, so the section uses the same colour and the letterbox
+// around the 16:9 frame disappears into the page.
+const AD = {
+  poster: '/ad/ad-poster.jpg',
+  sources: [
+    { src: '/ad/ad-720.mp4', media: '(max-width: 767px)' },
+    { src: '/ad/ad-1080.mp4' },
+  ],
+  label: 'Just Stretch ad: follow a 3D guide, let your webcam score your form, watch your form climb, and get an AI summary of your progress.',
 }
 
-const CREDITS = (
-  <>
-    Photographs:{' '}
-    <a href="https://commons.wikimedia.org/wiki/File:Naam_Yoga_LA_Class.jpg" target="_blank" rel="noopener noreferrer">
-      Drmirshak
-    </a>{' '}
-    (CC BY-SA 3.0, Wikimedia Commons)
-  </>
-)
+const heroHead = 'min-w-0 text-balance text-[32px] font-semibold leading-[1.08] tracking-[-0.03em] [overflow-wrap:break-word] sm:text-[42px] lg:text-[48px]'
+
+function HeroAd() {
+  const area = useRef(null)
+  const video = useRef(null)
+  // The largest 16:9 frame that fits the space left above the headline, so the
+  // controls sit on the video's own corner instead of the screen's.
+  const [frame, setFrame] = useState(null)
+  useEffect(() => {
+    const el = area.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      const w = Math.min(width, (height * 16) / 9)
+      setFrame({ width: Math.floor(w), height: Math.floor((w * 9) / 16) })
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  const [playing, setPlaying] = useState(false)
+  const [muted, setMuted] = useState(true)
+  // Reduced-motion visitors get the poster and press play themselves.
+  const [autoPlay] = useState(() => !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+
+  const togglePlay = () => {
+    const el = video.current
+    if (!el) return
+    if (el.paused) el.play().catch(() => {})
+    else el.pause()
+  }
+
+  const toggleSound = () => {
+    const el = video.current
+    if (!el) return
+    el.muted = !el.muted
+    setMuted(el.muted)
+    if (!el.muted && el.paused) el.play().catch(() => {})
+  }
+
+  const control =
+    'flex h-8 w-8 items-center justify-center rounded-full sm:h-10 sm:w-10 bg-ink/75 text-white backdrop-blur-sm transition-colors hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+
+  return (
+    <div ref={area} className="relative aspect-video w-full sm:aspect-auto sm:min-h-[14rem] sm:flex-1">
+      <div className="absolute inset-0 m-auto aspect-video max-h-full max-w-full" style={frame ?? { width: '100%' }}>
+        <video
+          ref={video}
+          className="h-full w-full"
+          poster={AD.poster}
+          autoPlay={autoPlay}
+          muted
+          loop
+          playsInline
+          preload="auto"
+          aria-label={AD.label}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onVolumeChange={(event) => setMuted(event.currentTarget.muted)}
+        >
+          {AD.sources.map((source) => (
+            <source key={source.src} src={source.src} media={source.media} type="video/mp4" />
+          ))}
+        </video>
+        <div className="absolute bottom-2 right-2 flex gap-1.5 sm:bottom-4 sm:right-4 sm:gap-2">
+          <button type="button" onClick={togglePlay} className={control} aria-label={playing ? 'Pause the ad' : 'Play the ad'}>
+            <Icon name={playing ? 'pause' : 'play'} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          </button>
+          <button type="button" onClick={toggleSound} className={control} aria-label={muted ? 'Turn sound on' : 'Turn sound off'} aria-pressed={!muted}>
+            <Icon name={muted ? 'soundOff' : 'soundOn'} className="h-4 w-4 sm:h-5 sm:w-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // Example values for the readout. They show what a session looks like, not anyone's data.
 const READOUT = [
@@ -186,38 +256,23 @@ export default function LandingPage() {
   ]
 
   return (
-    <PublicLayout contactBar credits={CREDITS}>
-      {/* Hero: a full-bleed photograph with the head low on the left, over a scrim from the ink. */}
-      <section id="hero" className="relative isolate flex min-h-[calc(100dvh-6.25rem)] items-end overflow-hidden bg-ink">
-        <div data-slot="hero" data-alt="Someone stretching at home in front of a laptop webcam" className="absolute inset-0 z-[1]">
-          <img
-            src={HERO_PHOTO.src}
-            srcSet={HERO_PHOTO.srcSet}
-            sizes="100vw"
-            alt={HERO_PHOTO.alt}
-            fetchPriority="high"
-            className="h-full w-full object-cover"
-            style={{ objectPosition: '50% 40%' }}
-          />
-        </div>
-        <div className="absolute inset-0 z-[2] bg-gradient-to-r from-ink/85 via-ink/55 to-ink/0" aria-hidden="true" />
-        <div className={`${container} relative z-[3] pb-16 pt-24 sm:pb-20`}>
-          <div className="max-w-[40rem] text-white">
-            <h1 className={display}>Stretch at home, with measured feedback.</h1>
-            <p className="mt-6 max-w-[32rem] text-[18px] leading-relaxed text-white/90 sm:text-[21px]">
-              Follow a 3D guide while your webcam checks every joint angle.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to={user ? '/dashboard' : '/register'} className={`${btn.primary} h-12 px-6 text-base`}>
-                {user ? 'Go to your dashboard' : 'Create a free account'}
-              </Link>
-              <a
-                href="#how-it-works"
-                className={`${btn.secondary} h-12 border-white/60 bg-transparent px-6 text-base text-white hover:bg-white hover:text-ink`}
-              >
-                How it works
-              </a>
-            </div>
+    <PublicLayout contactBar>
+      {/* Hero: the ad fills the screen, with the headline and buttons centred underneath.
+          On phones the 16:9 ad cannot fill a tall screen, so the hero is only as tall as its content. */}
+      <section id="hero" className="flex flex-col bg-[#f8fafa] sm:min-h-[calc(100dvh-6.25rem)]">
+        <HeroAd />
+        <div className={`${container} pb-10 pt-5 text-center sm:pb-12 sm:pt-6`}>
+          <h1 className={`mx-auto max-w-[62rem] ${heroHead}`}>Stretch at home, with measured feedback.</h1>
+          <p className="mx-auto mt-3 max-w-[40rem] text-[17px] leading-relaxed text-ink-2 sm:text-[19px]">
+            Follow a 3D guide while your webcam checks every joint angle.
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link to={user ? '/dashboard' : '/register'} className={`${btn.primary} h-12 px-6 text-base`}>
+              {user ? 'Go to your dashboard' : 'Create a free account'}
+            </Link>
+            <a href="#how-it-works" className={`${btn.secondary} h-12 px-6 text-base`}>
+              How it works
+            </a>
           </div>
         </div>
       </section>
