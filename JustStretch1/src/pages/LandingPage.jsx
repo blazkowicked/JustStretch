@@ -242,7 +242,7 @@ export default function LandingPage() {
   ]
 
   return (
-    <PublicLayout contactBar>
+    <PublicLayout>
       {/* Hero: the ad spans the full width of the screen, with the headline and buttons centred underneath. */}
       <section id="hero" className="flex flex-col bg-[#f8fafa]">
         <HeroAd />
